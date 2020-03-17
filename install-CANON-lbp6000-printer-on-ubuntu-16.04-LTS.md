@@ -53,9 +53,9 @@ Listen localhost:631
 Listen /var/run/cups/cups.sock
 ```
 
-replace the localhost with the IP adress your want (or / and) the host name
+replace the localhost with the IP address your want (or / and) the host name
 
-Also allow to acces remotly:
+Also allow to access remotely:
 In sections **\<Location />**, **\<Location /admin>** and **\<Location /admin/conf>**
 
 Add the following line:
@@ -77,17 +77,22 @@ sudo service cups restart
 
 Install the libraries needed:
 ```
-sudo apt install libatk1.0-0 libglade2-0 libgtk2.0-0 libpango1.0-0 libxcursor1 libxfixes3 libxi6 libxinerama1 libxrandr2
+sudo apt install libatk1.0-0 libglade2-0 libgtk2.0-0 libpango1.0-0 libxcursor1 libxfixes3 libxi6 libxinerama1 libxrandr2 gs-esp 
 ```
 
 
-Le cas echéant installer les modules complémentaires: 
+If needed install complementary modules: 
 ```
 sudo apt-get -f install
 ```
 
+Download the driver on the canon website.
+Ben sure to download the version  V2.71
+https://www.canon-europe.com/support/consumer_products/products/printers/laser/i-sensys_lbp6000.html?type=drivers&language=en&os=linux%20(64-bit)
 
-Enter the directory where the drivers are unziped and with the correct version (64 or 32 bits) and lanch:
+Unzip the drivers.
+
+Enter the directory where the drivers are unzipped and with the correct version (64 or 32 bits) and lanch:
 
 ```
 sudo dpkg -i *
