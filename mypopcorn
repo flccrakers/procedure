@@ -1,0 +1,135 @@
+#!/bin/bash
+
+HEADER='\033[95m'
+OKBLUE='\033[94m'
+OKGREEN='\033[92m'
+WARNING='\033[93m'
+FAIL='\033[91m'
+ENDC='\033[0m'
+BOLD='\033[1m'
+UNDERLINE='\033[4m'
+
+trap "sudo -A killall -q openvpn; killall -q popcorn-time; exit" SIGINT
+
+cd ~/software/VPNTUNNEL/OVPN
+pwd
+
+cpt=0 && for i in `find . |grep .ovpn`
+do
+CONNECTION_NAME[$cpt]=`echo -e $i`
+echo -e $cpt $i
+cpt=`expr $cpt + 1`
+done
+
+ECHELLE=$cpt
+FLAG=$RANDOM
+let "FLAG %= $ECHELLE"
+
+#echo -e $ARGNB
+
+if [ "$#" -eq "1" ] 
+then 
+	FLAG=$1
+fi
+
+echo -e ""
+CONNECTED=false
+CURRENTIP=$(dig @resolver1.opendns.com A myip.opendns.com +short -4)
+NO_VPN_IP=$(dig @resolver1.opendns.com A myip.opendns.com +short -4)
+echo -e "${OKBLUE}The current LOCALE IP is: $CURRENTIP${ENDC}"
+
+update_current_connection(){
+	FLAG=$RANDOM
+	let "FLAG %= $ECHELLE"
+
+}
+check_vpn_connection () { 
+ [ -f output.txt ] &&  while IFS= read -r line; do
+	    #echo -e "Text read from file: $line"
+	   	if [[ $line == *"Inactivity timeout"* ]]; then
+			echo -e "${FAIL}It's timeout, let's change server${ENDC}"
+  			CONNECTED=false
+  			update_current_connection
+			echo -e "Try to connect again..."
+		elif [[ $line == *"SIGTERM[soft,auth-failure]"* ]]; then
+			echo -e "${FAIL}Authentification failure (if it's happen often, check your account: ${OKBLUE}https://vpntunnel.com/fr/account/${FAIL})${ENDC}"
+  			CONNECTED=false
+  			update_current_connection
+			echo -e "Try to connect again..."
+		else 
+			if [[ $line == *"Initialization Sequence Completed"* ]]; then
+				#echo -e "Connected to VPNTUNNEL"
+				CONNECTED=true
+				update_current_IP
+			fi
+		fi
+
+
+	done < output.txt
+} 
+
+update_current_IP(){
+	CURRENTIP=$(dig @resolver1.opendns.com A myip.opendns.com +short -4)
+}
+
+can_launch_popcorn(){
+	update_current_IP
+	#echo -e "$CURRENTIP $NO_VPN_IP $CONNECTED"
+	if [[ $CURRENTIP != $NO_VPN_IP ]]
+	then
+		if [ "$CONNECTED" = true ]
+		then
+			return 0
+		else
+			return 1
+		fi
+	else
+		if [ "$CONNECTED" = true ]
+		then
+			echo -e "${WARNING}The IP is LOCALE [current: $CURRENTIP vs LOCALE: $NO_VPN_IP]${ENDC}"
+		fi
+		return 1
+	fi
+}
+
+while true 
+do	
+	if can_launch_popcorn == 0
+	then
+		
+		if [ -n "$(pidof popcorn-time)" ]  
+		then 
+			check_vpn_connection
+			sleep 3
+		else 
+			echo -e "${OKGREEN}VPNTUNNEL connected ! IP is [$CURRENTIP]${ENDC}"
+			echo -e "Launching popcorn-time..."
+			popcorn-time &
+			echo -e "${OKGREEN}Popcorn-time LAUNCHED${ENDC}"
+			echo -e ""
+		fi
+		
+	else
+		#echo -e "not CONNECTED"
+
+		if [ -n "$(pidof popcorn-time)" ]  
+		then
+			echo -e ""
+			echo -e "${FAIL}Not connected anymore to VPN${ENDC}"
+			echo -e "${WARNING}Closing popcorn-time${ENDC}"
+			echo -e ""
+			killall -q popcorn-time
+			CONNECTED=false
+		fi
+
+		if [ "$CONNECTED" = false ]; then
+			echo -e "${BOLD}Tying to connect ${CONNECTION_NAME[$FLAG]}${ENDC}"
+			[ -f output.txt ] && rm -rf output.txt
+			sudo -A openvpn ${CONNECTION_NAME[$FLAG]} > output.txt &
+			CONNECTED=true
+		fi
+		check_vpn_connection
+		
+	fi
+	sleep 3
+done
